@@ -21,12 +21,7 @@ on:
         description: PDF attachment mode: linked_url, upload, both, or none
         required: false
         default: linked_url
-        type: choice
-        options:
-          - linked_url
-          - upload
-          - both
-          - none
+        type: string
   issues:
     types:
       - opened

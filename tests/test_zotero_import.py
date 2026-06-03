@@ -14,11 +14,6 @@ from zotero_arxiv_daily.zotero_import import (
 )
 
 
-class StubResponse:
-    def raise_for_status(self):
-        return None
-
-
 class StubZotero:
     def __init__(self):
         self.collections_data = []
@@ -71,7 +66,7 @@ class StubZotero:
     def addto_collection(self, collection_key, item):
         self.added_to_collection.append((collection_key, item["key"]))
         item["data"]["collections"].append(collection_key)
-        return StubResponse()
+        return True
 
     def children(self, item_key):
         return []

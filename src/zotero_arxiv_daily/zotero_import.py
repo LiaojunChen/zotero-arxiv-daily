@@ -252,7 +252,10 @@ def ensure_item_in_collection(zot, item: dict, collection_key: str) -> None:
     if collection_key in collections:
         return
     response = zot.addto_collection(collection_key, item)
-    response.raise_for_status()
+    if hasattr(response, "raise_for_status"):
+        response.raise_for_status()
+    elif response is False:
+        raise RuntimeError(f"Failed to add Zotero item {item.get('key')} to collection {collection_key}.")
 
 
 def create_zotero_item(zot, paper: PaperMetadata, collection_key: str, collection_name: str) -> str:

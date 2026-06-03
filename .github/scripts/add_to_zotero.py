@@ -23,6 +23,7 @@ def main() -> int:
                 "source": "arxiv",
                 "url": os.environ.get("PAPER_URL"),
                 "collection_name": os.environ.get("COLLECTION_NAME") or DEFAULT_COLLECTION_NAME,
+                "attachment_mode": os.environ.get("ATTACHMENT_MODE"),
                 "upload_pdf": parse_bool(os.environ.get("UPLOAD_PDF"), default=True),
             }
         )

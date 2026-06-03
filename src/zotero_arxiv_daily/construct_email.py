@@ -156,4 +156,5 @@ def get_add_to_zotero_url(paper: Paper, config=None) -> str | None:
         github_repo=github_repo,
         collection_name=import_config.get("collection_name") or DEFAULT_COLLECTION_NAME,
         upload_pdf=import_config.get("upload_pdf", True),
+        attachment_mode=import_config.get("attachment_mode"),
     )

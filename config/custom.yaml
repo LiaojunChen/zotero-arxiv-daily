@@ -14,7 +14,8 @@ zotero_import:
   enabled: true
   collection_name: 每日论文推送
   github_repo: ${oc.env:GITHUB_REPOSITORY,LiaojunChen/zotero-arxiv-daily}
-  upload_pdf: true
+  attachment_mode: linked_url
+  upload_pdf: false
 
 llm:
   api:

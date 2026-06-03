@@ -61,7 +61,8 @@ def test_render_email_add_to_zotero_button():
                 "enabled": True,
                 "github_repo": "LiaojunChen/zotero-arxiv-daily",
                 "collection_name": "每日论文推送",
-                "upload_pdf": True,
+                "attachment_mode": "linked_url",
+                "upload_pdf": False,
             }
         }
     )

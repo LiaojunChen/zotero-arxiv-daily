@@ -24,7 +24,8 @@ zotero_import:
   enabled: false # Whether to show Add to Zotero buttons in the email. Example: true
   collection_name: 每日论文推送 # Zotero collection used for imported papers.
   github_repo: null # Repository used to open Add to Zotero issues. Example: username/zotero-arxiv-daily
-  upload_pdf: true # Whether to upload the PDF as a Zotero attachment.
+  attachment_mode: linked_url # PDF attachment mode: linked_url, upload, both, or none.
+  upload_pdf: false # Legacy option used when attachment_mode is omitted.
 
 llm:
   api:

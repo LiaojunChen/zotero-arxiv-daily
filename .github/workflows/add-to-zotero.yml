@@ -15,8 +15,18 @@ on:
       upload_pdf:
         description: Upload the PDF file as a Zotero attachment
         required: false
-        default: true
+        default: false
         type: boolean
+      attachment_mode:
+        description: PDF attachment mode: linked_url, upload, both, or none
+        required: false
+        default: linked_url
+        type: choice
+        options:
+          - linked_url
+          - upload
+          - both
+          - none
   issues:
     types:
       - opened
@@ -51,6 +61,7 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
           PAPER_URL: ${{ inputs.paper_url }}
           COLLECTION_NAME: ${{ inputs.collection_name }}
+          ATTACHMENT_MODE: ${{ inputs.attachment_mode }}
           UPLOAD_PDF: ${{ inputs.upload_pdf }}
         run: uv run --locked python .github/scripts/add_to_zotero.py
 

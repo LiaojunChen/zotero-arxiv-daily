@@ -90,7 +90,8 @@ zotero_import:
   enabled: true
   collection_name: 每日论文推送
   github_repo: ${oc.env:GITHUB_REPOSITORY,LiaojunChen/zotero-arxiv-daily}
-  upload_pdf: true
+  attachment_mode: linked_url
+  upload_pdf: false
 
 llm:
   api:
@@ -146,7 +147,8 @@ zotero_import:
   enabled: false # Whether to include Add to Zotero buttons in emails.
   collection_name: 每日论文推送 # Target Zotero collection for selected papers.
   github_repo: null # GitHub repo used by Add to Zotero links. Example: owner/repo
-  upload_pdf: true # Whether the add-to-Zotero workflow uploads the PDF as an attachment.
+  attachment_mode: linked_url # PDF attachment mode: linked_url, upload, both, or none.
+  upload_pdf: false # Legacy option used when attachment_mode is omitted.
 
 llm:
   api:
@@ -198,7 +200,7 @@ That's all! Now you can test the workflow by manually triggering it:
 
 Then check the log and the receiver email after it finishes.
 
-If `zotero_import.enabled` is true, each paper email includes an `Add to Zotero` button. The button opens a pre-filled GitHub issue; submit it, and the `Add paper to Zotero` workflow will create or reuse the `每日论文推送` collection, create the Zotero preprint item, and upload the PDF as a child attachment. The workflow ignores issues opened by users other than the repository owner.
+If `zotero_import.enabled` is true, each paper email includes an `Add to Zotero` button. The button opens a pre-filled GitHub issue; submit it, and the `Add paper to Zotero` workflow will create or reuse the `每日论文推送` collection, create the Zotero preprint item, and add the PDF according to `attachment_mode`. Use `linked_url` if your Zotero Desktop syncs files through WebDAV or you do not use paid Zotero Storage; it creates a Zotero PDF URL attachment without consuming Zotero Storage. Use `upload` only if you want the workflow to upload the PDF file to Zotero Storage. The workflow ignores issues opened by users other than the repository owner.
 
 By default, the main workflow runs on 22:00 UTC everyday. You can change this time by editting the workflow config `.github/workflows/main.yml`.
 

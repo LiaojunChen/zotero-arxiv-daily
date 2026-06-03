@@ -27,6 +27,7 @@ class ImportPayload:
     title: str | None = None
     pdf_url: str | None = None
     collection_name: str = DEFAULT_COLLECTION_NAME
+    attachment_mode: str = "linked_url"
     upload_pdf: bool = True
 
 
@@ -47,14 +48,17 @@ def build_add_to_zotero_issue_url(
     github_repo: str,
     collection_name: str = DEFAULT_COLLECTION_NAME,
     upload_pdf: bool = True,
+    attachment_mode: str | None = None,
 ) -> str:
     repo = normalize_github_repo(github_repo)
+    attachment_mode = normalize_attachment_mode(attachment_mode, upload_pdf)
     payload = {
         "source": paper.source,
         "title": paper.title,
         "url": paper.url,
         "pdf_url": paper.pdf_url,
         "collection_name": collection_name,
+        "attachment_mode": attachment_mode,
         "upload_pdf": upload_pdf,
     }
     body = (
@@ -95,6 +99,7 @@ def import_payload_from_dict(data: dict) -> ImportPayload:
         url=url,
         pdf_url=data.get("pdf_url"),
         collection_name=str(data.get("collection_name") or DEFAULT_COLLECTION_NAME),
+        attachment_mode=normalize_attachment_mode(data.get("attachment_mode"), parse_bool(data.get("upload_pdf"), default=True)),
         upload_pdf=parse_bool(data.get("upload_pdf"), default=True),
     )
 
@@ -105,6 +110,16 @@ def parse_bool(value, default: bool = False) -> bool:
     if isinstance(value, bool):
         return value
     return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def normalize_attachment_mode(mode: str | None, upload_pdf: bool = True) -> str:
+    if mode is None:
+        return "upload" if upload_pdf else "none"
+    normalized = str(mode).strip().lower()
+    allowed = {"upload", "linked_url", "both", "none"}
+    if normalized not in allowed:
+        raise ValueError(f"Unsupported attachment_mode {mode!r}. Use one of: {sorted(allowed)}")
+    return normalized
 
 
 def extract_arxiv_id(url: str) -> str | None:
@@ -286,7 +301,7 @@ def author_to_creator(author: str) -> dict:
     return {"creatorType": "author", "firstName": " ".join(parts[:-1]), "lastName": parts[-1]}
 
 
-def item_has_pdf_attachment(zot, item_key: str) -> bool:
+def item_has_pdf_attachment(zot, item_key: str, link_mode: str | None = None) -> bool:
     try:
         children = zot.everything(zot.children(item_key))
     except Exception as exc:
@@ -296,6 +311,8 @@ def item_has_pdf_attachment(zot, item_key: str) -> bool:
     for child in children:
         data = child.get("data", {})
         if data.get("itemType") != "attachment":
+            continue
+        if link_mode is not None and data.get("linkMode") != link_mode:
             continue
         content_type = data.get("contentType") or ""
         title = data.get("title") or ""
@@ -316,6 +333,24 @@ def upload_pdf_attachment(zot, paper: PaperMetadata, item_key: str) -> None:
         zot.attachment_both([(path.name, str(path))], parentid=item_key)
 
 
+def create_pdf_link_attachment(zot, paper: PaperMetadata, item_key: str) -> None:
+    if not paper.pdf_url:
+        raise ValueError("Paper has no PDF URL.")
+    try:
+        attachment = zot.item_template("attachment", linkmode="linked_url")
+    except Exception as exc:
+        logger.warning(f"Could not load Zotero linked_url attachment template, using fallback: {exc}")
+        attachment = {"itemType": "attachment", "linkMode": "linked_url"}
+
+    attachment["title"] = "arXiv PDF"
+    attachment["url"] = paper.pdf_url
+    attachment["contentType"] = "application/pdf"
+    response = zot.create_items([attachment], parentid=item_key)
+    success = response.get("success") or response.get("successful") or {}
+    if not success:
+        raise RuntimeError(f"Failed to create Zotero PDF URL attachment: {response}")
+
+
 def safe_pdf_filename(paper: PaperMetadata) -> str:
     stem = paper.arxiv_id or paper.title
     stem = re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("_")[:120]
@@ -326,6 +361,7 @@ def import_paper_to_zotero(zot, payload: ImportPayload) -> dict:
     paper = fetch_paper_metadata(payload)
     collection_key = ensure_collection(zot, payload.collection_name)
     existing_item = find_existing_item(zot, paper)
+    attachment_mode = normalize_attachment_mode(payload.attachment_mode, payload.upload_pdf)
 
     if existing_item:
         item_key = existing_item["key"]
@@ -336,12 +372,21 @@ def import_paper_to_zotero(zot, payload: ImportPayload) -> dict:
         status = "created"
 
     pdf_status = "skipped"
-    if payload.upload_pdf and paper.pdf_url:
-        if item_has_pdf_attachment(zot, item_key):
-            pdf_status = "existing"
-        else:
-            upload_pdf_attachment(zot, paper, item_key)
-            pdf_status = "uploaded"
+    if paper.pdf_url and attachment_mode != "none":
+        statuses = []
+        if attachment_mode in {"linked_url", "both"}:
+            if item_has_pdf_attachment(zot, item_key, link_mode="linked_url"):
+                statuses.append("linked_url_existing")
+            else:
+                create_pdf_link_attachment(zot, paper, item_key)
+                statuses.append("linked_url")
+        if attachment_mode in {"upload", "both"}:
+            if item_has_pdf_attachment(zot, item_key, link_mode="imported_file"):
+                statuses.append("uploaded_existing")
+            else:
+                upload_pdf_attachment(zot, paper, item_key)
+                statuses.append("uploaded")
+        pdf_status = "+".join(statuses)
 
     return {
         "status": status,

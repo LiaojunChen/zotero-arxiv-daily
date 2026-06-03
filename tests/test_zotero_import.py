@@ -39,8 +39,8 @@ class StubZotero:
     def items(self, **kwargs):
         return self.items_data
 
-    def item_template(self, item_type):
-        return {
+    def item_template(self, item_type, linkmode=None):
+        template = {
             "itemType": item_type,
             "title": "",
             "creators": [],
@@ -53,11 +53,17 @@ class StubZotero:
             "collections": [],
             "tags": [],
         }
+        if item_type == "attachment":
+            template["linkMode"] = linkmode
+        return template
 
-    def create_items(self, payload):
+    def create_items(self, payload, parentid=None):
         key = f"ITEM{len(self.items_data) + 1}"
-        self.created_items.append(payload[0])
-        self.items_data.append({"key": key, "version": 1, "data": payload[0]})
+        item = dict(payload[0])
+        if parentid:
+            item["parentItem"] = parentid
+        self.created_items.append(item)
+        self.items_data.append({"key": key, "version": 1, "data": item})
         return {"success": {"0": key}}
 
     def addto_collection(self, collection_key, item):
@@ -79,7 +85,13 @@ def test_build_add_to_zotero_issue_url_round_trips_payload():
         url="https://arxiv.org/abs/2606.00005v1",
         pdf_url="https://arxiv.org/pdf/2606.00005",
     )
-    url = build_add_to_zotero_issue_url(paper, "https://github.com/LiaojunChen/zotero-arxiv-daily", "每日论文推送")
+    url = build_add_to_zotero_issue_url(
+        paper,
+        "https://github.com/LiaojunChen/zotero-arxiv-daily",
+        "每日论文推送",
+        upload_pdf=False,
+        attachment_mode="linked_url",
+    )
 
     parsed = urlsplit(url)
     query = parse_qs(parsed.query)
@@ -90,7 +102,8 @@ def test_build_add_to_zotero_issue_url_round_trips_payload():
     assert query["title"][0].startswith("[Add to Zotero]")
     assert payload.url == "https://arxiv.org/abs/2606.00005v1"
     assert payload.collection_name == "每日论文推送"
-    assert payload.upload_pdf is True
+    assert payload.attachment_mode == "linked_url"
+    assert payload.upload_pdf is False
 
 
 def test_extract_arxiv_id_normalizes_versions_and_pdf_urls():
@@ -160,3 +173,34 @@ def test_import_paper_to_zotero_reuses_existing_item(monkeypatch):
     assert result["status"] == "existing"
     assert zot.created_items == []
     assert zot.added_to_collection == [("COL1", "ITEM1")]
+
+
+def test_import_paper_to_zotero_creates_linked_pdf_attachment(monkeypatch):
+    paper = PaperMetadata(
+        source="arxiv",
+        title="A Useful Paper",
+        authors=[],
+        abstract="",
+        url="https://arxiv.org/abs/2606.00005",
+        pdf_url="https://arxiv.org/pdf/2606.00005",
+        arxiv_id="2606.00005",
+    )
+    monkeypatch.setattr(zotero_import, "fetch_paper_metadata", lambda payload: paper)
+    zot = StubZotero()
+
+    result = import_paper_to_zotero(
+        zot,
+        ImportPayload(
+            url="https://arxiv.org/abs/2606.00005",
+            collection_name="每日论文推送",
+            attachment_mode="linked_url",
+            upload_pdf=False,
+        ),
+    )
+
+    assert result["pdf_status"] == "linked_url"
+    attachment = zot.created_items[-1]
+    assert attachment["itemType"] == "attachment"
+    assert attachment["linkMode"] == "linked_url"
+    assert attachment["url"] == "https://arxiv.org/pdf/2606.00005"
+    assert attachment["parentItem"] == "ITEM1"

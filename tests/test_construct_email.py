@@ -2,6 +2,7 @@
 
 from zotero_arxiv_daily.construct_email import render_email, get_stars, get_block_html, get_empty_html
 from tests.canned_responses import make_sample_paper
+from omegaconf import OmegaConf
 
 
 def test_render_email_with_papers():
@@ -45,6 +46,29 @@ def test_render_email_no_affiliations():
     paper = make_sample_paper(affiliations=None, score=7.0, tldr="ok")
     html = render_email([paper])
     assert "Unknown Affiliation" in html
+
+
+def test_render_email_add_to_zotero_button():
+    paper = make_sample_paper(
+        score=7.0,
+        tldr="ok",
+        url="https://arxiv.org/abs/2606.00005",
+        pdf_url="https://arxiv.org/pdf/2606.00005",
+    )
+    config = OmegaConf.create(
+        {
+            "zotero_import": {
+                "enabled": True,
+                "github_repo": "LiaojunChen/zotero-arxiv-daily",
+                "collection_name": "每日论文推送",
+                "upload_pdf": True,
+            }
+        }
+    )
+    html = render_email([paper], config)
+    assert "Add to Zotero" in html
+    assert "https://github.com/LiaojunChen/zotero-arxiv-daily/issues/new" in html
+    assert "2606.00005" in html
 
 
 def test_get_stars_low_score():

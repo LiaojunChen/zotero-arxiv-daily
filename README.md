@@ -61,7 +61,7 @@ Below are all the secrets you need to set. They are invisible to anyone includin
 | Key |Description | Example |
 | :---  | :---  | :--- |
 | ZOTERO_ID  | User ID of your Zotero account. **User ID is not your username, but a sequence of numbers**Get your ID from [here](https://www.zotero.org/settings/security). You can find it at the position shown in this [screenshot](https://github.com/TideDra/zotero-arxiv-daily/blob/main/assets/userid.png). | 12345678  |
-| ZOTERO_KEY | An Zotero API key with read access. Get a key from [here](https://www.zotero.org/settings/security).  | AB5tZ877P2j7Sm2Mragq041H   |
+| ZOTERO_KEY | A Zotero API key. Read access is enough for recommendations; write access is required if you use the Add to Zotero workflow. Get a key from [here](https://www.zotero.org/settings/security).  | AB5tZ877P2j7Sm2Mragq041H   |
 | SENDER | The email account of the SMTP server that sends you email. | abc@qq.com |
 | SENDER_PASSWORD | The password of the sender account. Note that it's not necessarily the password for logging in the e-mail client, but the authentication code for SMTP service. Ask your email provider for this.   | abcdefghijklmn |
 | RECEIVER | The e-mail address that receives the paper list. | abc@outlook.com |
@@ -85,6 +85,12 @@ email:
   smtp_server: smtp.qq.com
   smtp_port: 465
   sender_password: ${oc.env:SENDER_PASSWORD}
+
+zotero_import:
+  enabled: true
+  collection_name: 每日论文推送
+  github_repo: ${oc.env:GITHUB_REPOSITORY,LiaojunChen/zotero-arxiv-daily}
+  upload_pdf: true
 
 llm:
   api:
@@ -136,6 +142,12 @@ email:
   smtp_port: ??? # The port of SMTP server. Example: 465
   sender_password: ??? # The password of the sender account. Note that it's not necessarily the password for logging in the e-mail client, but the authentication code for SMTP service. Ask your email provider for this. Example: abcdefghijklmn
 
+zotero_import:
+  enabled: false # Whether to include Add to Zotero buttons in emails.
+  collection_name: 每日论文推送 # Target Zotero collection for selected papers.
+  github_repo: null # GitHub repo used by Add to Zotero links. Example: owner/repo
+  upload_pdf: true # Whether the add-to-Zotero workflow uploads the PDF as an attachment.
+
 llm:
   api:
     key: ??? # API Key of your LLM API. Example: sk-xxx
@@ -185,6 +197,8 @@ That's all! Now you can test the workflow by manually triggering it:
 > The Test-Workflow Action is the debug version of the main workflow (Send-emails-daily), which always retrieve 5 arxiv papers regardless of the date. While the main workflow will be automatically triggered everyday and retrieve new papers released yesterday. There is no new arxiv paper at weekends and holiday, in which case you may see "No new papers found" in the log of main workflow.
 
 Then check the log and the receiver email after it finishes.
+
+If `zotero_import.enabled` is true, each paper email includes an `Add to Zotero` button. The button opens a pre-filled GitHub issue; submit it, and the `Add paper to Zotero` workflow will create or reuse the `每日论文推送` collection, create the Zotero preprint item, and upload the PDF as a child attachment. The workflow ignores issues opened by users other than the repository owner.
 
 By default, the main workflow runs on 22:00 UTC everyday. You can change this time by editting the workflow config `.github/workflows/main.yml`.
 

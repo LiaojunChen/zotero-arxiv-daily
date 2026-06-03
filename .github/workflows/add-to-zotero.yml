@@ -1,0 +1,74 @@
+name: Add paper to Zotero
+
+on:
+  workflow_dispatch:
+    inputs:
+      paper_url:
+        description: arXiv abstract or PDF URL
+        required: true
+        type: string
+      collection_name:
+        description: Zotero collection name
+        required: false
+        default: 每日论文推送
+        type: string
+      upload_pdf:
+        description: Upload the PDF file as a Zotero attachment
+        required: false
+        default: true
+        type: boolean
+  issues:
+    types:
+      - opened
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  add-to-zotero:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.actor == github.repository_owner && startsWith(github.event.issue.title, '[Add to Zotero]'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7.1.4
+
+      - name: Add paper to Zotero
+        id: import
+        env:
+          ZOTERO_ID: ${{ secrets.ZOTERO_ID }}
+          ZOTERO_KEY: ${{ secrets.ZOTERO_KEY }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          PAPER_URL: ${{ inputs.paper_url }}
+          COLLECTION_NAME: ${{ inputs.collection_name }}
+          UPLOAD_PDF: ${{ inputs.upload_pdf }}
+        run: uv run --locked python .github/scripts/add_to_zotero.py
+
+      - name: Comment and close issue
+        if: github.event_name == 'issues' && success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          IMPORT_TITLE: ${{ steps.import.outputs.title }}
+          COLLECTION_NAME: ${{ steps.import.outputs.collection_name }}
+          PDF_STATUS: ${{ steps.import.outputs.pdf_status }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "Added to Zotero collection '$COLLECTION_NAME': $IMPORT_TITLE. PDF: $PDF_STATUS."
+          gh issue close "$ISSUE_NUMBER" --reason completed
+
+      - name: Comment on failure
+        if: github.event_name == 'issues' && failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: gh issue comment "$ISSUE_NUMBER" --body "Failed to add this paper to Zotero. Check the workflow log for details."

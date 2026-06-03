@@ -33,6 +33,8 @@ def _base_config():
                 "email.smtp_server=localhost",
                 "email.smtp_port=1025",
                 "email.sender_password=test",
+                "zotero_import.enabled=false",
+                "zotero_import.github_repo=LiaojunChen/zotero-arxiv-daily",
                 "llm.api.key=sk-fake",
                 "llm.api.base_url=http://localhost:30000/v1",
                 "llm.generation_kwargs.model=gpt-4o-mini",

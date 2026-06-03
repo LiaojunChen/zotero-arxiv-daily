@@ -20,6 +20,12 @@ email:
   smtp_port: ??? # The port of SMTP server. Example: 465
   sender_password: ??? # The password of the sender account. Note that it's not necessarily the password for logging in the e-mail client, but the authentication code for SMTP service. Ask your email provider for this. Example: abcdefghijklmn
 
+zotero_import:
+  enabled: false # Whether to show Add to Zotero buttons in the email. Example: true
+  collection_name: 每日论文推送 # Zotero collection used for imported papers.
+  github_repo: null # Repository used to open Add to Zotero issues. Example: username/zotero-arxiv-daily
+  upload_pdf: true # Whether to upload the PDF as a Zotero attachment.
+
 llm:
   api:
     key: ??? # API Key of your LLM API. Example: sk-xxx
@@ -59,4 +65,4 @@ executor:
   send_empty: false # Whether to send an empty email even if no new papers today. Example: true
   max_paper_num: 100 # The maximum number of the papers presented in the email. Example: 100
   source: ??? # The sources of papers to retrieve. Example: ['arxiv','biorxiv','medrxiv']
-  reranker: local # The reranker to use. Example: 'local' or 'api'
+  reranker: local # The reranker to use. Example: 'local', 'api' or 'siliconflow'

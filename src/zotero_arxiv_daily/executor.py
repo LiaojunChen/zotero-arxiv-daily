@@ -119,6 +119,6 @@ class Executor:
             logger.info("No new papers found. No email will be sent.")
             return
         logger.info("Sending email...")
-        email_content = render_email(reranked_papers)
+        email_content = render_email(reranked_papers, self.config)
         send_email(self.config, email_content)
         logger.info("Email sent successfully")

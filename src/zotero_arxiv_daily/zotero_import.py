@@ -18,6 +18,7 @@ from .protocol import Paper
 DEFAULT_COLLECTION_NAME = "每日论文推送"
 ISSUE_TITLE_PREFIX = "[Add to Zotero]"
 ISSUE_JSON_RE = re.compile(r"```json\s*(\{.*?\})\s*```", re.DOTALL)
+CHILD_ITEM_TYPES = {"attachment", "note"}
 
 
 @dataclass
@@ -214,13 +215,36 @@ def find_existing_item(zot, paper: PaperMetadata):
     seen = set()
     for query in [q for q in queries if q]:
         for item in zot.everything(zot.items(q=query)):
-            key = item.get("key")
+            candidate, from_child = resolve_parent_item(zot, item)
+            if candidate is None:
+                continue
+            key = candidate.get("key")
             if key in seen:
                 continue
             seen.add(key)
-            if is_same_paper(item, paper):
-                return item
+            if is_same_paper(candidate, paper) or (
+                from_child and is_same_paper(item, paper)
+            ):
+                return candidate
     return None
+
+
+def resolve_parent_item(zot, item: dict) -> tuple[dict | None, bool]:
+    data = item.get("data", {})
+    if data.get("itemType") not in CHILD_ITEM_TYPES:
+        return item, False
+
+    parent_key = data.get("parentItem")
+    if not parent_key:
+        return None, True
+
+    try:
+        return zot.item(parent_key), True
+    except Exception as exc:
+        logger.warning(
+            f"Could not fetch parent item {parent_key} for Zotero child {item.get('key')}: {exc}"
+        )
+        return None, True
 
 
 def is_same_paper(item: dict, paper: PaperMetadata) -> bool:

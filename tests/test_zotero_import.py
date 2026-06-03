@@ -208,6 +208,54 @@ def test_import_paper_to_zotero_reuses_item_missing_collections(monkeypatch):
     assert zot.items_data[0]["data"]["collections"] == ["COL1"]
 
 
+def test_import_paper_to_zotero_uses_parent_when_search_matches_attachment(monkeypatch):
+    paper = PaperMetadata(
+        source="arxiv",
+        title="A Useful Paper",
+        authors=[],
+        abstract="",
+        url="https://arxiv.org/abs/2606.00005",
+        pdf_url=None,
+        arxiv_id="2606.00005",
+    )
+    monkeypatch.setattr(zotero_import, "fetch_paper_metadata", lambda payload: paper)
+    zot = StubZotero()
+    zot.collections_data.append({"key": "COL1", "data": {"name": "每日论文推送"}})
+    parent = {
+        "key": "ITEM1",
+        "version": 1,
+        "data": {
+            "itemType": "preprint",
+            "title": "A Useful Paper",
+            "url": "https://arxiv.org/abs/2606.00005",
+            "extra": "arXiv: 2606.00005",
+        },
+    }
+    attachment = {
+        "key": "ATTACH1",
+        "version": 1,
+        "data": {
+            "itemType": "attachment",
+            "title": "A Useful Paper PDF",
+            "url": "https://arxiv.org/pdf/2606.00005",
+            "parentItem": "ITEM1",
+        },
+    }
+    zot.items = lambda **kwargs: [attachment]
+    zot.item = lambda key: parent
+
+    result = import_paper_to_zotero(
+        zot,
+        ImportPayload(url="https://arxiv.org/abs/2606.00005", collection_name="每日论文推送", upload_pdf=False),
+    )
+
+    assert result["status"] == "existing"
+    assert result["item_key"] == "ITEM1"
+    assert zot.created_items == []
+    assert zot.added_to_collection == [("COL1", "ITEM1")]
+    assert parent["data"]["collections"] == ["COL1"]
+
+
 def test_override_attachment_options_forces_linked_url_for_old_issue_payload():
     payload = import_payload_from_dict(
         {

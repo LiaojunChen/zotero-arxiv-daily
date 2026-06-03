@@ -5,7 +5,7 @@ import os
 import re
 import shutil
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import urlopen
@@ -101,6 +101,22 @@ def import_payload_from_dict(data: dict) -> ImportPayload:
         collection_name=str(data.get("collection_name") or DEFAULT_COLLECTION_NAME),
         attachment_mode=normalize_attachment_mode(data.get("attachment_mode"), parse_bool(data.get("upload_pdf"), default=True)),
         upload_pdf=parse_bool(data.get("upload_pdf"), default=True),
+    )
+
+
+def override_attachment_options(
+    payload: ImportPayload,
+    attachment_mode: str | None = None,
+    upload_pdf=None,
+) -> ImportPayload:
+    effective_upload_pdf = (
+        payload.upload_pdf if upload_pdf is None else parse_bool(upload_pdf, default=payload.upload_pdf)
+    )
+    effective_mode = payload.attachment_mode if not attachment_mode else attachment_mode
+    return replace(
+        payload,
+        attachment_mode=normalize_attachment_mode(effective_mode, effective_upload_pdf),
+        upload_pdf=effective_upload_pdf,
     )
 
 
@@ -231,7 +247,8 @@ def normalize_title(title: str) -> str:
 
 
 def ensure_item_in_collection(zot, item: dict, collection_key: str) -> None:
-    collections = item.get("data", {}).get("collections", [])
+    data = item.setdefault("data", {})
+    collections = data.setdefault("collections", [])
     if collection_key in collections:
         return
     response = zot.addto_collection(collection_key, item)

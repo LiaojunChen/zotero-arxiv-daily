@@ -8,6 +8,8 @@ from zotero_arxiv_daily.zotero_import import (
     build_add_to_zotero_issue_url,
     extract_arxiv_id,
     import_paper_to_zotero,
+    import_payload_from_dict,
+    override_attachment_options,
     parse_issue_body,
 )
 
@@ -173,6 +175,61 @@ def test_import_paper_to_zotero_reuses_existing_item(monkeypatch):
     assert result["status"] == "existing"
     assert zot.created_items == []
     assert zot.added_to_collection == [("COL1", "ITEM1")]
+
+
+def test_import_paper_to_zotero_reuses_item_missing_collections(monkeypatch):
+    paper = PaperMetadata(
+        source="arxiv",
+        title="A Useful Paper",
+        authors=[],
+        abstract="",
+        url="https://arxiv.org/abs/2606.00005",
+        pdf_url=None,
+        arxiv_id="2606.00005",
+    )
+    monkeypatch.setattr(zotero_import, "fetch_paper_metadata", lambda payload: paper)
+    zot = StubZotero()
+    zot.collections_data.append({"key": "COL1", "data": {"name": "每日论文推送"}})
+    zot.items_data.append(
+        {
+            "key": "ITEM1",
+            "version": 1,
+            "data": {
+                "itemType": "preprint",
+                "title": "A Useful Paper",
+                "url": "https://arxiv.org/abs/2606.00005",
+                "extra": "arXiv: 2606.00005",
+            },
+        }
+    )
+
+    result = import_paper_to_zotero(
+        zot,
+        ImportPayload(url="https://arxiv.org/abs/2606.00005", collection_name="每日论文推送", upload_pdf=False),
+    )
+
+    assert result["status"] == "existing"
+    assert zot.added_to_collection == [("COL1", "ITEM1")]
+    assert zot.items_data[0]["data"]["collections"] == ["COL1"]
+
+
+def test_override_attachment_options_forces_linked_url_for_old_issue_payload():
+    payload = import_payload_from_dict(
+        {
+            "source": "arxiv",
+            "url": "https://arxiv.org/abs/2606.00005",
+            "pdf_url": "https://arxiv.org/pdf/2606.00005",
+            "collection_name": "每日论文推送",
+            "upload_pdf": True,
+        }
+    )
+
+    overridden = override_attachment_options(payload, attachment_mode="linked_url", upload_pdf="false")
+
+    assert payload.attachment_mode == "upload"
+    assert payload.upload_pdf is True
+    assert overridden.attachment_mode == "linked_url"
+    assert overridden.upload_pdf is False
 
 
 def test_import_paper_to_zotero_creates_linked_pdf_attachment(monkeypatch):

@@ -8,6 +8,7 @@ from zotero_arxiv_daily.zotero_import import (
     DEFAULT_COLLECTION_NAME,
     import_paper_to_zotero,
     import_payload_from_dict,
+    override_attachment_options,
     parse_bool,
     parse_issue_body,
     write_github_output,
@@ -17,6 +18,11 @@ from zotero_arxiv_daily.zotero_import import (
 def main() -> int:
     if os.environ.get("ISSUE_BODY"):
         payload = parse_issue_body(os.environ["ISSUE_BODY"])
+        payload = override_attachment_options(
+            payload,
+            attachment_mode=os.environ.get("ATTACHMENT_MODE"),
+            upload_pdf=os.environ.get("UPLOAD_PDF"),
+        )
     else:
         payload = import_payload_from_dict(
             {

@@ -12,16 +12,6 @@ on:
         required: false
         default: 每日论文推送
         type: string
-      upload_pdf:
-        description: Upload the PDF file as a Zotero attachment
-        required: false
-        default: false
-        type: boolean
-      attachment_mode:
-        description: PDF attachment mode: linked_url, upload, both, or none
-        required: false
-        default: linked_url
-        type: string
   issues:
     types:
       - opened
@@ -56,8 +46,8 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
           PAPER_URL: ${{ inputs.paper_url }}
           COLLECTION_NAME: ${{ inputs.collection_name }}
-          ATTACHMENT_MODE: ${{ inputs.attachment_mode }}
-          UPLOAD_PDF: ${{ inputs.upload_pdf }}
+          ATTACHMENT_MODE: linked_url
+          UPLOAD_PDF: false
         run: uv run --locked python .github/scripts/add_to_zotero.py
 
       - name: Comment and close issue
